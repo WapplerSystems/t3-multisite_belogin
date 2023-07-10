@@ -1,0 +1,24 @@
+{
+	"name": "wapplersystems/multisite-belogin",
+	"type": "typo3-cms-extension",
+	"description": "",
+	"license": "GPL-2.0-or-later",
+	"keywords": [
+		"TYPO3",
+		"extension"
+	],
+	"homepage": "https://wappler.systems",
+	"require": {
+		"typo3/cms-core": "^11"
+	},
+	"autoload": {
+		"psr-4": {
+			"WapplerSystems\\MultisiteBelogin\\": "Classes"
+		}
+	},
+	"extra": {
+		"typo3/cms": {
+			"extension-key": "multisite_belogin"
+		}
+	}
+}

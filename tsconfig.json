@@ -1,0 +1,30 @@
+{
+    "compilerOptions": {
+        "target": "es2020",
+        "allowSyntheticDefaultImports": true,
+        "incremental": true,
+        "tsBuildInfoFile": "./.cache/tsconfig.tsbuildinfo",
+        "module": "es2020",
+        "moduleResolution": "node",
+        "sourceMap": false,
+        "removeComments": false,
+        "alwaysStrict": true,
+        "downlevelIteration": true,
+        "experimentalDecorators": true,
+        "useDefineForClassFields": false,
+        "noImplicitAny": true,
+        "noImplicitThis": true,
+        "noImplicitReturns": true,
+        "pretty": true,
+        "baseUrl": "Sources/TypeScript",
+        "paths": {
+            "@typo3/toolbar/*": [
+                "toolbar/*"
+            ]
+        },
+        "outDir": "./Resources/Public/JavaScript/"
+    },
+    "exclude": [
+        "composer/"
+    ]
+}
