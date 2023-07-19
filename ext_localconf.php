@@ -9,9 +9,6 @@ $GLOBALS['TYPO3_CONF_VARS']['SYS']['Objects'][TYPO3\CMS\Backend\Middleware\Backe
 ];
 
 
-
-$GLOBALS['TYPO3_CONF_VARS']['BE']['cookieSameSite'] = 'none';
-
 $GLOBALS['TYPO3_CONF_VARS']['SVCONF']['auth']['setup']['BE_fetchUserIfNoSession'] = true;
 $GLOBALS['TYPO3_CONF_VARS']['SVCONF']['auth']['setup']['FE_fetchUserIfNoSession'] = true;
 
