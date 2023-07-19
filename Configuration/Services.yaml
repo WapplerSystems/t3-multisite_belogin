@@ -17,3 +17,8 @@ services:
   WapplerSystems\MultisiteBelogin\Controller\TokenController:
     public: true
 
+  WapplerSystems\MultisiteBelogin\EventListener\BeforeUserLogoutEventListener:
+    tags:
+      - name: event.listener
+        identifier: 'multisiteBelogin-eventListener'
+        event: TYPO3\CMS\Core\Authentication\Event\BeforeUserLogoutEvent
