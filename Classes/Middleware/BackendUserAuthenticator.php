@@ -57,7 +57,7 @@ class BackendUserAuthenticator extends \TYPO3\CMS\Backend\Middleware\BackendUser
      */
     protected function isLoggedInBackendUserRequired(Route $route): bool
     {
-        if ($route->getPath() === '/ajax/msbl/status' || $route->getPath() === '/ajax/msbl/login') {
+        if ($route->getPath() === '/ajax/msbl/status' || $route->getPath() === '/ajax/msbl/login' || $route->getPath() === '/ajax/msbl/preflight') {
             return false;
         }
         return in_array($route->getPath(), $this->publicRoutes, true) === false;

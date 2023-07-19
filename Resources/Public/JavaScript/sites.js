@@ -123,22 +123,33 @@ define(["require", "exports", "jquery", "TYPO3/CMS/Core/Ajax/AjaxRequest", "TYPO
               }).finally(() => {
                 if (!ok) {
 
-                  (new AjaxRequest(host + TYPO3.settings.ajaxUrls.multisitebelogin_login)).post({
-                    login_status: 'login',
-                    msblToken: token,
-                    username: username
+
+                  (new AjaxRequest(host + TYPO3.settings.ajaxUrls.multisitebelogin_preflight)).post({
                   },{
                     credentials: 'include'
                   }).then(async (response) => {
-                    let loginStatus = await response.resolve();
-                    if (loginStatus.login.success) {
-                      let hostElements = document.querySelectorAll('.site-language[data-host="' + host + '"]');
-                      hostElements.forEach(function (element) {
-                        element.dataset.active = 'true';
-                      });
-                    }
+
+                    (new AjaxRequest(host + TYPO3.settings.ajaxUrls.multisitebelogin_login)).post({
+                      login_status: 'login',
+                      msblToken: token,
+                      username: username
+                    },{
+                      credentials: 'include'
+                    }).then(async (response) => {
+                      let loginStatus = await response.resolve();
+                      if (loginStatus.login.success) {
+                        let hostElements = document.querySelectorAll('.site-language[data-host="' + host + '"]');
+                        hostElements.forEach(function (element) {
+                          element.dataset.active = 'true';
+                        });
+                      }
+
+                    });
 
                   });
+
+
+
 
                 }
 
