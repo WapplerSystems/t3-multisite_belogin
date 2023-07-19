@@ -25,5 +25,10 @@ return [
         'target' => BackendLoginController::class . '::loginAction',
         'access' => 'public',
     ],
+    'multisitebelogin_preflight' => [
+        'path' => '/msbl/preflight',
+        'target' => BackendLoginController::class . '::preflightAction',
+        'access' => 'public',
+    ],
 
 ];

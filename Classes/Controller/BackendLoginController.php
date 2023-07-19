@@ -21,6 +21,28 @@ class BackendLoginController extends AjaxLoginController
 {
 
 
+    public function preflightAction(ServerRequestInterface $request): ResponseInterface
+    {
+        $origin = $request->getHeader('Origin');
+
+        if (empty($origin)) {
+            return new JsonResponse(['login' => ['timed_out' => true, 'no-origin' => true]]);
+        }
+        $originDomain = $this->getOriginDomain($origin);
+        if (empty($originDomain)) {
+            return new JsonResponse(['login' => ['timed_out' => true, 'no-origin-domain' => true]]);
+        }
+
+        $headers = $request->getHeaders();
+        return new JsonResponse([
+            'capabilities' => [
+                'cookie' => !empty($request->getCookieParams()),
+                // using legacy `Referer` (sic!) header name
+                'referrer' => array_filter($headers['referer'] ?? []) !== [],
+            ],
+        ],200, ['Access-Control-Allow-Origin' => $originDomain, 'Access-Control-Allow-Credentials' => 'true']);
+    }
+
     public function loginAction(ServerRequestInterface $request): ResponseInterface
     {
         $origin = $request->getHeader('Origin');
