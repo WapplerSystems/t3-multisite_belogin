@@ -30,3 +30,6 @@ ExtensionManagementUtility::addService(
 );
 
 $GLOBALS['TYPO3_CONF_VARS']['BE']['toolbarItems'][1688982809] = StatusToolbarItem::class;
+
+
+$GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_userauth.php']['logoff_pre_processing'][] = \WapplerSystems\MultisiteBelogin\Hooks\LogoutHook::class . '->execute';
