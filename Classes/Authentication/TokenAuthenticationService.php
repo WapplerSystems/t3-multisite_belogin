@@ -13,12 +13,6 @@ use WapplerSystems\MultisiteBelogin\Session\UserSessionManager;
 
 class TokenAuthenticationService extends AbstractAuthenticationService
 {
-
-
-    public function __construct()
-    {
-    }
-
     public function getUser()
     {
         $token = $this->getParameterFromRequest('msblToken');
