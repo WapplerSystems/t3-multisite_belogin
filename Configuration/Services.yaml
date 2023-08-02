@@ -7,11 +7,7 @@ services:
   WapplerSystems\MultisiteBelogin\:
     resource: '../Classes/*'
 
-
   WapplerSystems\MultisiteBelogin\Service\TokenGenerator:
-    public: true
-
-  WapplerSystems\MultisiteBelogin\Service\Validation:
     public: true
 
   WapplerSystems\MultisiteBelogin\Controller\TokenController:

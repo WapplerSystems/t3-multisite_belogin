@@ -15,10 +15,6 @@ class TokenAuthenticationService extends AbstractAuthenticationService
 {
 
 
-    public function __construct()
-    {
-    }
-
     public function getUser()
     {
         $token = $this->getParameterFromRequest('msblToken');

@@ -23,9 +23,6 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 class SitesController
 {
 
-    public function __construct()
-    {
-    }
 
     public function listAction(ServerRequestInterface $request): ResponseInterface
     {

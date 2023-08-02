@@ -4,13 +4,14 @@ namespace WapplerSystems\MultisiteBelogin\Session;
 
 
 use TYPO3\CMS\Core\Authentication\IpLocker;
+use TYPO3\CMS\Core\Session\Backend\SessionBackendInterface;
 use TYPO3\CMS\Core\Session\SessionManager;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 class UserSessionManager extends \TYPO3\CMS\Core\Session\UserSessionManager
 {
 
-    public function getSessionBackend() : \TYPO3\CMS\Core\Session\Backend\SessionBackendInterface
+    public function getSessionBackend() : SessionBackendInterface
     {
         return $this->sessionBackend;
     }
