@@ -1,4 +1,3 @@
-# 🔴 Nur für Tests geeignet! 🔴
 
 # multisite-belogin
 TYPO3 Extension for automatic cross domain backend login. The editor now can use the backend tools in frontend like preview.
