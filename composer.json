@@ -1,11 +1,15 @@
 {
 	"name": "wapplersystems/multisite-belogin",
 	"type": "typo3-cms-extension",
-	"description": "",
+	"description": "Cross site/domain backend login for TYPO3. It allows backend users to work in the frontend across domains.",
 	"license": "GPL-2.0-or-later",
 	"keywords": [
 		"TYPO3",
-		"extension"
+		"extension",
+		"multisite",
+		"backend",
+		"login",
+		"cross domain"
 	],
 	"homepage": "https://wappler.systems",
 	"require": {
