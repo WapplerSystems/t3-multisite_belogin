@@ -54,7 +54,11 @@ class SitesController
                     ];
                 }
 
-                $title = $site->getAttribute('websiteTitle');
+                try {
+                    $title = $site->getAttribute('websiteTitle');
+                } catch (\InvalidArgumentException $e) {
+                    $title = '';
+                }
                 if (empty($title)) {
                     $title = $site->getIdentifier();
                 }
