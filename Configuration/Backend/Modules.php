@@ -6,19 +6,19 @@ use TYPO3\CMS\Backend\Controller\AboutController;
  */
 return [
     'multisitebelogin' => [
-        'labels' => 'LLL:EXT:core/Resources/Private/Language/locallang_mod_help.xlf',
-        'iconIdentifier' => 'modulegroup-help',
+        'labels' => 'LLL:EXT:multisite_belogin/Resources/Private/Language/backend.xlf',
+        'iconIdentifier' => 'multisite-belogin-module',
         'appearance' => [
             'renderInModuleMenu' => false,
         ],
     ],
-    'status' => [
+    'multisitebelogin-status' => [
         'parent' => 'multisitebelogin',
         'position' => ['before' => '*'],
         'access' => 'user',
         'path' => '/module/multisitenelogin/status',
-        'iconIdentifier' => 'module-about',
-        'labels' => 'LLL:EXT:backend/Resources/Private/Language/Modules/about.xlf',
+        'iconIdentifier' => 'multisite-belogin-module-status',
+        'labels' => 'LLL:EXT:multisite_belogin/Resources/Private/Language/status.xlf',
         'aliases' => ['multisitebelogin_Status'],
         'routes' => [
             '_default' => [

@@ -24,7 +24,7 @@ var MultisiteBeloginSelector;
   MultisiteBeloginSelector["element"] = "#wapplersystems-multisitebelogin-backend-toolbaritems-statustoolbaritem";
   MultisiteBeloginSelector["icon"] = "#wapplersystems-multisitebelogin-backend-toolbaritems-statustoolbaritem .toolbar-item-icon .t3js-icon";
   MultisiteBeloginSelector["menu"] = "#wapplersystems-multisitebelogin-backend-toolbaritems-statustoolbaritem .dropdown-menu";
-  MultisiteBeloginSelector["status"] = "#wapplersystems-multisitebelogin-backend-toolbaritems-statustoolbaritem .multisite-belogin-module-status";
+  MultisiteBeloginSelector["status"] = "#wapplersystems-multisitebelogin-backend-toolbaritems-statustoolbaritem .multisite-belogin-module-multisitebelogin-status";
   MultisiteBeloginSelector["data"] = "[data-systeminformation-data]";
   MultisiteBeloginSelector["badge"] = "[data-systeminformation-badge]";
   MultisiteBeloginSelector["message"] = "[data-systeminformation-message-module]";

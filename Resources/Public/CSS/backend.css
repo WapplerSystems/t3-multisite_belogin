@@ -1,15 +1,15 @@
 
-.multisite-belogin-module-status .site-languages {
+.multisite-belogin-module-multisitebelogin-status .site-languages {
     display: flex;
     flex-direction: row;
 }
 
-.multisite-belogin-module-status .site-language {
+.multisite-belogin-module-multisitebelogin-status .site-language {
     height: 3px;
     background: red;
     flex: 0 100%;
     margin: 0 2px;
 }
-.multisite-belogin-module-status .site-language[data-active="true"] {
+.multisite-belogin-module-multisitebelogin-status .site-language[data-active="true"] {
     background: green;
 }

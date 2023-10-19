@@ -72,7 +72,9 @@ class StatusToolbarItem implements ToolbarItemInterface, RequestAwareToolbarItem
     {
 
         $view = $this->backendViewFactory->create($this->request,['wapplersystems/multisite-belogin']);
-        $view->assign('modules', $this->multisitebeloginModule->getSubModules());
+        if ($this->multisitebeloginModule !== null) {
+            $view->assign('modules', $this->multisitebeloginModule->getSubModules());
+        }
         return $view->render('ToolbarItems/StatusToolbarItemDropDown');
     }
 
