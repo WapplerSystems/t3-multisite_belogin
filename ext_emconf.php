@@ -12,11 +12,7 @@ $EM_CONF['multisite_belogin'] = [
     'version' => '12.0.2',
     'constraints' => [
         'depends' => [
-            'typo3' => '12.0.0-12.4.99',
-        ],
-        'conflicts' => [
-        ],
-        'suggests' => [
+            'typo3' => '12.4.8-12.4.99',
         ],
     ],
 ];

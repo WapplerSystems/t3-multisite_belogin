@@ -13,7 +13,7 @@
   ],
   "homepage": "https://wappler.systems",
   "require": {
-    "typo3/cms-core": "^12"
+    "typo3/cms-core": "^12.4.8"
   },
   "autoload": {
     "psr-4": {

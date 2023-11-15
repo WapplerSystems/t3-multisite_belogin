@@ -49,7 +49,8 @@ class UserSessionManager extends \TYPO3\CMS\Core\Session\UserSessionManager
             self::class,
             $sessionManager->getSessionBackend($loginType),
             $sessionLifetime,
-            $ipLocker
+            $ipLocker,
+            $loginType
         );
         if ($loginType === 'FE') {
             $object->setGarbageCollectionTimeoutForAnonymousSessions((int)($GLOBALS['TYPO3_CONF_VARS']['FE']['sessionDataLifetime'] ?? 0));
