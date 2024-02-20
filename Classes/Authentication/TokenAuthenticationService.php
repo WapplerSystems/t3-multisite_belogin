@@ -73,7 +73,10 @@ class TokenAuthenticationService extends AbstractAuthenticationService
         if (isset($_POST[$parameterName])) {
             return trim((string)($_POST[$parameterName]));
         }
-        return trim((string)($_GET[$parameterName]));
+        if (isset($_POST[$parameterName])) {
+            return trim((string)($_GET[$parameterName]));
+        }
+        return null;
     }
 
 }
