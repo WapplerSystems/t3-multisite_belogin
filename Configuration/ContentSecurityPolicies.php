@@ -13,21 +13,26 @@ use TYPO3\CMS\Core\Type\Map;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 $currentHost = GeneralUtility::getIndpEnv('HTTP_HOST');
-$siteFinder = GeneralUtility::makeInstance(SiteFinder::class);
-$sites = $siteFinder->getAllSites();
-
 $mutations = [];
 
-foreach ($sites as $site) {
-    $host = parse_url($site->getBase()->__toString(), PHP_URL_HOST);
-    if ($host && $host !== $currentHost) {
-        $mutations[] = new Mutation(
-            MutationMode::Extend,
-            Directive::ConnectSrc,
-            new UriValue($site->getBase()->__toString()),
-        );
+if ($currentHost !== '') {
+    $requestHost = GeneralUtility::getIndpEnv('TYPO3_REQUEST_HOST');
+    $siteFinder = GeneralUtility::makeInstance(SiteFinder::class);
+    $sites = $siteFinder->getAllSites();
+
+    foreach ($sites as $site) {
+        $siteBase = $site->getBase()->__toString();
+        if (str_starts_with($siteBase, $requestHost)) {
+            $mutations[] = new Mutation(
+                MutationMode::Extend,
+                Directive::ConnectSrc,
+                new UriValue($requestHost),
+            );
+            break;
+        }
     }
 }
+
 $collection = new MutationCollection(...$mutations);
 
 return Map::fromEntries([
