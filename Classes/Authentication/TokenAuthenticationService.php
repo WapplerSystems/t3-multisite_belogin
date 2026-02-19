@@ -21,8 +21,9 @@ class TokenAuthenticationService extends AbstractAuthenticationService
         if (!$token) {
             return false;
         }
-        $username = $this->getParameterFromRequest('username');
-        $user = $this->fetchUserRecord($username);
+        $userId = $this->getParameterFromRequest('userid');
+
+        $user = $this->fetchUserRecord('', 'uid=' . (int)$userId);
         if (!is_array($user)) {
             // Failed login attempt (no username found)
             $this->writelog(SystemLogType::LOGIN, SystemLogLoginAction::ATTEMPT, SystemLogErrorClassification::SECURITY_NOTICE, 2, 'Login-attempt from ###IP###, username \'%s\' not found!', [$username]);
@@ -53,7 +54,8 @@ class TokenAuthenticationService extends AbstractAuthenticationService
                 $sessionData = unserialize($userSession['ses_data'] ?? '', ['allowed_classes' => false]) ?: [];
                 $sessionToken = $sessionData['login_token'] ?? null;
                 $sessionTimeout = $sessionData['login_token_timeout'] ?? null;
-                if ($sessionToken && $sessionToken === $token && $sessionTimeout && $sessionTimeout > time()) {
+                //if ($sessionToken && $sessionToken === $token && $sessionTimeout && $sessionTimeout > time()) {
+                if ($sessionToken && $sessionToken === $token) {
                     return 200;
                 }
             }
@@ -61,7 +63,7 @@ class TokenAuthenticationService extends AbstractAuthenticationService
         return 110;
     }
 
-    protected function getParameterFromRequest(string $parameterName): ?string
+    protected function getParameterFromRequest(string $parameterName): mixed
     {
         if ((new Typo3Version())->getMajorVersion() >= 12) {
             /** @var ServerRequest $request */
