@@ -3,11 +3,6 @@
 use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
 use WapplerSystems\MultisiteBelogin\Authentication\TokenAuthenticationService;
 
-
-$GLOBALS['TYPO3_CONF_VARS']['BE']['stylesheets']['multisite_belogin']
-    = 'EXT:multisite_belogin/Resources/Public/CSS/backend.css';
-
-
 $GLOBALS['TYPO3_CONF_VARS']['SVCONF']['auth']['setup']['BE_fetchUserIfNoSession'] = true;
 
 ExtensionManagementUtility::addService(
