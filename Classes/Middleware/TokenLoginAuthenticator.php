@@ -95,6 +95,8 @@ class TokenLoginAuthenticator implements MiddlewareInterface
                     }
 
                     //$response = new HtmlResponse('Token valid, logging in...', 200);
+                    $url .= str_contains($url, '?') ? '&' : '?';
+                    $url .= 'refresh=' . time();
                     $response = new RedirectResponse($url);
 
                     $request = $request->withQueryParams([
@@ -146,7 +148,7 @@ class TokenLoginAuthenticator implements MiddlewareInterface
         $setCookieService = SetCookieService::create($this->backendUserAuthentication->name, $this->backendUserAuthentication->loginType);
         $cookieObject = $setCookieService->setSessionCookie($this->backendUserAuthentication->userSession, $normalizedParams);
         if ($cookieObject) {
-            $cookieObject = $cookieObject->withSameSite(Cookie::SAMESITE_LAX);
+            $cookieObject = $cookieObject->withSameSite(Cookie::SAMESITE_NONE);
             $response = $response->withAddedHeader('Set-Cookie', $cookieObject->__toString());
         }
         return $response;
