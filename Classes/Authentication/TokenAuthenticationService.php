@@ -54,8 +54,7 @@ class TokenAuthenticationService extends AbstractAuthenticationService
                 $sessionData = unserialize($userSession['ses_data'] ?? '', ['allowed_classes' => false]) ?: [];
                 $sessionToken = $sessionData['login_token'] ?? null;
                 $sessionTimeout = $sessionData['login_token_timeout'] ?? null;
-                //if ($sessionToken && $sessionToken === $token && $sessionTimeout && $sessionTimeout > time()) {
-                if ($sessionToken && $sessionToken === $token) {
+                if ($sessionToken && $sessionToken === $token && $sessionTimeout && $sessionTimeout > time()) {
                     return 200;
                 }
             }

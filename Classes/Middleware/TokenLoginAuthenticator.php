@@ -91,7 +91,7 @@ class TokenLoginAuthenticator implements MiddlewareInterface
                     // check token timeout
                     $tokenTimeout = $sessionData['login_token_timeout'] ?? 0;
                     if ($tokenTimeout < time()) {
-                        //return new HtmlResponse('Token expired', 500);
+                        return new HtmlResponse('Token expired', 500);
                     }
 
                     //$response = new HtmlResponse('Token valid, logging in...', 200);
