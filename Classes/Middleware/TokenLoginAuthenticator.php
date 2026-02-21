@@ -107,9 +107,6 @@ class TokenLoginAuthenticator implements MiddlewareInterface
 
                     $this->backendUserAuthentication->start($request);
 
-                    $event = new AfterUserLoggedInEvent($this->backendUserAuthentication, $request);
-                    GeneralUtility::makeInstance(EventDispatcherInterface::class)->dispatch($event);
-
                     return $this->enrichResponseWithHeadersAndCookieInformation($request, $response, $this->backendUserAuthentication);
                 }
             }

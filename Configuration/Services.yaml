@@ -22,12 +22,6 @@ services:
         identifier: 'multisiteBelogin-beforeUserLogoutEventListener'
         event: TYPO3\CMS\Core\Authentication\Event\BeforeUserLogoutEvent
 
-  WapplerSystems\MultisiteBelogin\EventListener\AfterUserLoggedInEventListener:
-    tags:
-      - name: event.listener
-        identifier: 'multisiteBelogin-adterUserLoggedInEventListener'
-        event: TYPO3\CMS\Core\Authentication\Event\AfterUserLoggedInEvent
-
   WapplerSystems\MultisiteBelogin\EventListener\AfterUserLoggedOutEventListener:
     tags:
       - name: event.listener
