@@ -24,7 +24,6 @@ use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use Symfony\Component\HttpFoundation\Cookie;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
-use TYPO3\CMS\Core\Authentication\Event\AfterUserLoggedInEvent;
 use TYPO3\CMS\Core\Authentication\LoginType;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Core\Environment;
@@ -107,9 +106,6 @@ class TokenLoginAuthenticator implements MiddlewareInterface
 
                     $this->backendUserAuthentication->start($request);
 
-                    $event = new AfterUserLoggedInEvent($this->backendUserAuthentication, $request);
-                    GeneralUtility::makeInstance(EventDispatcherInterface::class)->dispatch($event);
-
                     return $this->enrichResponseWithHeadersAndCookieInformation($request, $response, $this->backendUserAuthentication);
                 }
             }
@@ -146,7 +142,7 @@ class TokenLoginAuthenticator implements MiddlewareInterface
             $normalizedParams = NormalizedParams::createFromRequest($GLOBALS['TYPO3_REQUEST']);
         }
         $setCookieService = SetCookieService::create($this->backendUserAuthentication->name, $this->backendUserAuthentication->loginType);
-        $cookieObject = $setCookieService->setSessionCookie($this->backendUserAuthentication->userSession, $normalizedParams);
+        $cookieObject = $setCookieService->setSessionCookie($this->backendUserAuthentication->getSession(), $normalizedParams);
         if ($cookieObject) {
             $cookieObject = $cookieObject->withSameSite(Cookie::SAMESITE_NONE);
             $response = $response->withAddedHeader('Set-Cookie', $cookieObject->__toString());
