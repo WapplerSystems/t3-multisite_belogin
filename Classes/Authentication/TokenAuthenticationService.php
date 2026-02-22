@@ -26,9 +26,9 @@ class TokenAuthenticationService extends AbstractAuthenticationService
         $user = $this->fetchUserRecord('', 'uid=' . (int)$userId);
         if (!is_array($user)) {
             // Failed login attempt (no username found)
-            $this->writelog(SystemLogType::LOGIN, SystemLogLoginAction::ATTEMPT, SystemLogErrorClassification::SECURITY_NOTICE, 2, 'Login-attempt from ###IP###, username \'%s\' not found!', [$username]);
-            $this->logger->info('Login-attempt from username "{username}" not found!', [
-                'username' => $username,
+            $this->writelog(SystemLogType::LOGIN, SystemLogLoginAction::ATTEMPT, SystemLogErrorClassification::SECURITY_NOTICE, 2, 'Login-attempt from ###IP###, token \'%s\' not found!', [$token]);
+            $this->logger->info('Login-attempt from token "{token}" not found!', [
+                'token' => $token,
                 'REMOTE_ADDR' => $this->authInfo['REMOTE_ADDR'],
             ]);
         } else {
