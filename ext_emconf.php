@@ -9,10 +9,10 @@ $EM_CONF['multisite_belogin'] = [
     'author_company' => 'WapplerSystems',
     'state' => 'stable',
     'clearCacheOnLoad' => 1,
-    'version' => '12.1.0',
+    'version' => '13.1.0',
     'constraints' => [
         'depends' => [
-            'typo3' => '12.4.8-12.4.99',
+            'typo3' => '13.0.0-13.4.99',
         ],
     ],
 ];
