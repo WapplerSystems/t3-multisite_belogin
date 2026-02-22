@@ -21,13 +21,14 @@ class TokenAuthenticationService extends AbstractAuthenticationService
         if (!$token) {
             return false;
         }
-        $username = $this->getParameterFromRequest('username');
-        $user = $this->fetchUserRecord($username);
+        $userId = $this->getParameterFromRequest('userid');
+
+        $user = $this->fetchUserRecord('', 'uid=' . (int)$userId);
         if (!is_array($user)) {
             // Failed login attempt (no username found)
-            $this->writelog(SystemLogType::LOGIN, SystemLogLoginAction::ATTEMPT, SystemLogErrorClassification::SECURITY_NOTICE, 2, 'Login-attempt from ###IP###, username \'%s\' not found!', [$username]);
-            $this->logger->info('Login-attempt from username "{username}" not found!', [
-                'username' => $username,
+            $this->writelog(SystemLogType::LOGIN, SystemLogLoginAction::ATTEMPT, SystemLogErrorClassification::SECURITY_NOTICE, 2, 'Login-attempt from ###IP###, token \'%s\' not found!', [$token]);
+            $this->logger->info('Login-attempt from token "{token}" not found!', [
+                'token' => $token,
                 'REMOTE_ADDR' => $this->authInfo['REMOTE_ADDR'],
             ]);
         } else {
@@ -61,7 +62,7 @@ class TokenAuthenticationService extends AbstractAuthenticationService
         return 110;
     }
 
-    protected function getParameterFromRequest(string $parameterName): ?string
+    protected function getParameterFromRequest(string $parameterName): mixed
     {
         if ((new Typo3Version())->getMajorVersion() >= 12) {
             /** @var ServerRequest $request */
