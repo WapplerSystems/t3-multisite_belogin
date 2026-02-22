@@ -17,7 +17,6 @@ declare(strict_types=1);
 
 namespace WapplerSystems\MultisiteBelogin\Middleware;
 
-use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
