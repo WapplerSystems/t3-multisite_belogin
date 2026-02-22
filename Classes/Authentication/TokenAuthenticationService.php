@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace WapplerSystems\MultisiteBelogin\Authentication;
 
-use TYPO3\CMS\Core\Authentication\AbstractAuthenticationService;
+use TYPO3\CMS\Core\Authentication\AuthenticationService;
 use TYPO3\CMS\Core\Http\ServerRequest;
 use TYPO3\CMS\Core\Information\Typo3Version;
 use TYPO3\CMS\Core\SysLog\Action\Login as SystemLogLoginAction;
@@ -11,7 +11,7 @@ use TYPO3\CMS\Core\SysLog\Error as SystemLogErrorClassification;
 use TYPO3\CMS\Core\SysLog\Type as SystemLogType;
 use WapplerSystems\MultisiteBelogin\Session\UserSessionManager;
 
-class TokenAuthenticationService extends AbstractAuthenticationService
+class TokenAuthenticationService extends AuthenticationService
 {
 
 
@@ -43,6 +43,7 @@ class TokenAuthenticationService extends AbstractAuthenticationService
 
     public function authUser(array $user): int
     {
+
         $token = $this->getParameterFromRequest('msblToken');
 
         $userSessionManager = UserSessionManager::create('BE');
