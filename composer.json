@@ -1,28 +1,33 @@
 {
-  "name": "wapplersystems/multisite-belogin",
-  "type": "typo3-cms-extension",
-  "description": "Cross site/domain backend login for TYPO3. It allows backend users to work in the frontend across domains.",
-  "license": "GPL-2.0-or-later",
-  "keywords": [
-    "TYPO3",
-    "extension",
-    "multisite",
-    "backend",
-    "login",
-    "cross domain"
-  ],
-  "homepage": "https://wappler.systems",
-  "require": {
-    "typo3/cms-core": "^14.0.0"
-  },
-  "autoload": {
-    "psr-4": {
-      "WapplerSystems\\MultisiteBelogin\\": "Classes"
+    "name": "wapplersystems/multisite-belogin",
+    "type": "typo3-cms-extension",
+    "description": "Cross site/domain backend login for TYPO3. It allows backend users to work in the frontend across domains.",
+    "keywords": ["TYPO3", "extension", "multisite", "backend", "login", "cross domain"],
+    "homepage": "https://github.com/WapplerSystems/t3-multisite_belogin",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "Sven Wappler",
+            "email": "typo3@wappler.systems",
+            "role": "Developer"
+        }
+    ],
+    "support": {
+        "source": "https://github.com/WapplerSystems/t3-multisite_belogin",
+        "issues": "https://github.com/WapplerSystems/t3-multisite_belogin/issues"
+    },
+    "require": {
+        "php": "^8.2",
+        "typo3/cms-core": "^14.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "WapplerSystems\\MultisiteBelogin\\": "Classes/"
+        }
+    },
+    "extra": {
+        "typo3/cms": {
+            "extension-key": "multisite_belogin"
+        }
     }
-  },
-  "extra": {
-    "typo3/cms": {
-      "extension-key": "multisite_belogin"
-    }
-  }
 }
