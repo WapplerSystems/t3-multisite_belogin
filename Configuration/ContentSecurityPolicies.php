@@ -12,7 +12,7 @@ use TYPO3\CMS\Core\Site\SiteFinder;
 use TYPO3\CMS\Core\Type\Map;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
-$currentHost = $_SERVER['HTTP_HOST'];
+$currentHost = $_SERVER['HTTP_HOST'] ?? '';
 $siteFinder = GeneralUtility::makeInstance(SiteFinder::class);
 $sites = $siteFinder->getAllSites();
 
