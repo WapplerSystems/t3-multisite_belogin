@@ -82,7 +82,7 @@ class TokenLoginAuthenticator implements MiddlewareInterface
         )->fetchAllAssociative();
         foreach ($sessions as $session) {
             if (isset($session['ses_data'])) {
-                $sessionData = unserialize($session['ses_data']);
+                $sessionData = unserialize($session['ses_data'] ?? '', ['allowed_classes' => false]) ?: [];
                 $loginToken = $sessionData['login_token'] ?? null;
 
                 if ($loginToken === $token) {
