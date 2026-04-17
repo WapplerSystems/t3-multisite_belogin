@@ -1,0 +1,4 @@
+/.editorconfig   export-ignore
+/.eslintrc.json  export-ignore
+/.github/        export-ignore
+/.gitignore      export-ignore
