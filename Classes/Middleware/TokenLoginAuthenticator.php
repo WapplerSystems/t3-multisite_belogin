@@ -63,6 +63,7 @@ class TokenLoginAuthenticator implements MiddlewareInterface
         $token = $request->getQueryParams()['msblToken'] ?? '';
         $userid = (int)($request->getQueryParams()['userid'] ?? null);
         $url = $request->getQueryParams()['url'] ?? '';
+        $workspaceId = (int)($request->getQueryParams()['workspace'] ?? 0);
 
         if ($userid === null) {
             return new HtmlResponse('No user id given', 500);
@@ -105,6 +106,10 @@ class TokenLoginAuthenticator implements MiddlewareInterface
                     ]);
 
                     $this->backendUserAuthentication->start($request);
+
+                    if ($workspaceId > 0) {
+                        $this->backendUserAuthentication->setWorkspace($workspaceId);
+                    }
 
                     return $this->enrichResponseWithHeadersAndCookieInformation($request, $response, $this->backendUserAuthentication);
                 }
