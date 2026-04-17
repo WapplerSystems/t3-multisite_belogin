@@ -41,8 +41,10 @@ class LoginController
             return new RedirectResponse($frontendUrl);
         }
 
+        $workspaceId = (int)$backendUser->workspace;
+
         $tokenAuthUri = $this->generateBackendUrl('multisitebelogin_tokenauth');
-        $tokenAuthUri = $uri->getScheme() . '://' . $uri->getHost() . $tokenAuthUri . '?msblToken='.$token.'&userid='.$backendUser->user['uid'].'&url=' . urlencode($frontendUrl);
+        $tokenAuthUri = $uri->getScheme() . '://' . $uri->getHost() . $tokenAuthUri . '?msblToken='.$token.'&userid='.$backendUser->user['uid'].'&workspace='.$workspaceId.'&url=' . urlencode($frontendUrl);
 
         return new RedirectResponse($tokenAuthUri);
     }
