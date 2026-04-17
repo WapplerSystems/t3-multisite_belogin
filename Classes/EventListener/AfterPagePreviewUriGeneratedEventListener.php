@@ -28,6 +28,7 @@ final class AfterPagePreviewUriGeneratedEventListener
         $redirectUrl = $redirectUrl
             ->withScheme($request->getUri()->getScheme())
             ->withHost($request->getUri()->getHost())
+            ->withPort($request->getUri()->getPort())
             ->withQuery($redirectUrl->getQuery(). '&url=' . urlencode($previewUri->__toString()));
 
         $event->setPreviewUri($redirectUrl);
