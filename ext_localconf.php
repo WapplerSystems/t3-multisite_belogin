@@ -21,3 +21,7 @@ ExtensionManagementUtility::addService(
         'className' => TokenAuthenticationService::class,
     ]
 );
+
+if (!in_array('refresh', $GLOBALS['TYPO3_CONF_VARS']['FE']['cacheHash']['excludedParameters'])) {
+    $GLOBALS['TYPO3_CONF_VARS']['FE']['cacheHash']['excludedParameters'][] = 'refresh';
+}
