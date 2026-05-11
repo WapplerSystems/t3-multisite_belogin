@@ -34,6 +34,7 @@ use TYPO3\CMS\Core\Http\NormalizedParams;
 use TYPO3\CMS\Core\Http\RedirectResponse;
 use TYPO3\CMS\Core\Http\SetCookieService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Core\Utility\HttpUtility;
 
 /**
  * Initializes the backend user authentication object (BE_USER) and the global LANG object.
@@ -96,8 +97,12 @@ class TokenLoginAuthenticator implements MiddlewareInterface
                     }
 
                     //$response = new HtmlResponse('Token valid, logging in...', 200);
-                    $url .= str_contains($url, '?') ? '&' : '?';
-                    $url .= 'refresh=' . time();
+                    $parsed = parse_url($url);
+                    parse_str($parsed['query'] ?? '', $existing);
+                    $params = ['refresh' => time()];
+                    $parsed['query'] = http_build_query(array_merge($existing, $params));
+                    $url = HttpUtility::buildUrl($parsed);
+
                     $response = new RedirectResponse($url);
 
                     $request = $request->withQueryParams([
