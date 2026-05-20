@@ -2,20 +2,12 @@
 # multisite-belogin
 TYPO3 Extension for automatic cross domain backend login. The editor now can use the backend tools in frontend like preview.
 
-## Screenshots
-
-![](./Documentation/Images/dropdown.png)
-
-Each bar represents one language of a site. With green it worked, with red something went wrong.
+## What does it do?
+This extension allows editors to be automatically logged in to the backend when they access frontends with other domains.
+This is particularly useful for previewing content and using backend tools directly from the frontend without having to log in separately for each domain.
 
 ## Installation
 
 * Install the extension via composer/TER
-* Set in backend the installation-wide option '[BE][cookieSameSite] = none'
-* All bases of sites must have a full qualified domain name (FQDN) like 'https://www.foo.com/' or 'https://www.bar.com'
-* You must login to backend with https and on a site domain
-
-
-## TODOs
-
-* generate TypeScript files
+* Add the "refresh" GET parameter to the [FE][cacheHash][excludedParameters] configuration in your system settings
+* You must log in to backend with https
