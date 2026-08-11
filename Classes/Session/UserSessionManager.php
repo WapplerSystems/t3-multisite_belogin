@@ -3,6 +3,7 @@
 namespace WapplerSystems\MultisiteBelogin\Session;
 
 
+use Psr\Clock\ClockInterface;
 use TYPO3\CMS\Core\Authentication\IpLocker;
 use TYPO3\CMS\Core\Session\Backend\SessionBackendInterface;
 use TYPO3\CMS\Core\Session\SessionManager;
@@ -31,7 +32,7 @@ class UserSessionManager extends \TYPO3\CMS\Core\Session\UserSessionManager
      * @param IpLocker|null $ipLocker
      * @return static
      */
-    public static function create(string $loginType, ?int $sessionLifetime = null, ?SessionManager $sessionManager = null, ?IpLocker $ipLocker = null): self
+    public static function create(string $loginType, ?int $sessionLifetime = null, ?SessionManager $sessionManager = null, ?IpLocker $ipLocker = null, ?ClockInterface $clock = null): self
     {
         $sessionManager = $sessionManager ?? GeneralUtility::makeInstance(SessionManager::class);
         $ipLocker = $ipLocker ?? GeneralUtility::makeInstance(
@@ -50,7 +51,8 @@ class UserSessionManager extends \TYPO3\CMS\Core\Session\UserSessionManager
             $sessionManager->getSessionBackend($loginType),
             $sessionLifetime,
             $ipLocker,
-            $loginType
+            $loginType,
+            $clock
         );
         if ($loginType === 'FE') {
             $object->setGarbageCollectionTimeoutForAnonymousSessions((int)($GLOBALS['TYPO3_CONF_VARS']['FE']['sessionDataLifetime'] ?? 0));
