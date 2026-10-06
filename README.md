@@ -27,9 +27,9 @@ When an editor clicks "View page" in the TYPO3 backend, the target page may be o
 
 This extension solves this by:
 
-1. **Token generation** -- When the editor triggers a frontend preview, a short-lived token (60s TTL) is generated and stored in the backend session.
+1. **Token generation** -- When the editor triggers a frontend preview, a short-lived token (20s TTL) is generated and stored in the backend session. Tokens are only issued for URLs on a domain of a configured site.
 2. **Redirect** -- The preview URL is rewritten to pass through the token authentication endpoint (`/typo3/msbl/tokenauth`) with the token, user ID, and original target URL.
-3. **Token validation** -- The middleware intercepts the request, validates the token against the stored session data, and authenticates the user.
+3. **Token validation** -- The middleware intercepts the request, validates the token against the stored session data, consumes it (single use) and authenticates the user. If the user has MFA enabled, the session on the target domain is only accepted as MFA-verified when the issuing session has passed MFA.
 4. **Cookie propagation** -- A backend session cookie with `SameSite=None` is set on the response, enabling cross-domain authentication.
 5. **Redirect to target** -- The editor is redirected to the original preview URL, now fully authenticated.
 
@@ -56,10 +56,10 @@ Backend (domain-a.com)                    Frontend (domain-b.com)
 | Component | Description |
 |-----------|-------------|
 | `TokenGenerator` | Generates 40-char random hex tokens via `TYPO3\CMS\Core\Crypto\Random` |
-| `TokenAuthenticationService` | TYPO3 auth service (`subtype: getUserBE,authUserBE`) that validates tokens against stored sessions |
-| `TokenLoginAuthenticator` | PSR-15 middleware on `/typo3/msbl/tokenauth` -- validates token, sets session cookie, redirects |
-| `LoginController` | Backend route `/msbl/redirectToFrontend` -- generates token, stores in session, builds redirect URL |
-| `TokenController` | Backend route for programmatic token generation (JSON API) |
+| `TokenAuthenticationService` | TYPO3 auth service (`subtype: getUserBE,authUserBE`) that authenticates the user whose token the middleware has verified; inactive on all other requests |
+| `TokenLoginAuthenticator` | PSR-15 middleware on `/typo3/msbl/tokenauth` -- validates and consumes the token, carries over the MFA state, sets session cookie, redirects |
+| `LoginController` | Backend route `/msbl/redirectToFrontend` -- checks the target URL against the configured sites, generates token, stores in session, builds redirect URL |
+| `TokenController` | Token generation as JSON (currently not registered as a route) |
 | `AfterPagePreviewUriGeneratedEventListener` | Rewrites preview URIs to route through the token auth endpoint |
 | `BeforeUserLogoutEventListener` | On logout: removes all other sessions for the user |
 | `AfterUserLoggedOutEventListener` | On logout: cleanup of all remaining sessions |
@@ -77,7 +77,10 @@ Backend (domain-a.com)                    Frontend (domain-b.com)
 ## Security considerations
 
 - Tokens are cryptographically random (40-char hex)
-- Tokens expire after 60 seconds
+- Tokens expire after 20 seconds and can only be used once, also with concurrent requests
+- Tokens are only accepted on `/typo3/msbl/tokenauth`, not on other backend URLs
+- Tokens are only issued for domains of configured sites, and the token endpoint only redirects to its own domain
+- With MFA, the login on another domain requires that the issuing session has passed MFA
 - Token validation uses safe `unserialize()` with `allowed_classes: false`
 - Session cookies are set with `SameSite=None` (requires HTTPS)
 - Failed login attempts are logged via PSR-3 logger
