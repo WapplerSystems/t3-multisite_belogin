@@ -24,6 +24,7 @@ use Psr\Http\Server\RequestHandlerInterface;
 use Symfony\Component\HttpFoundation\Cookie;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Authentication\LoginType;
+use TYPO3\CMS\Core\Authentication\Mfa\MfaRequiredException;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\Database\ConnectionPool;
@@ -109,7 +110,16 @@ class TokenLoginAuthenticator implements MiddlewareInterface
                         'login_status' => LoginType::LOGIN,
                     ]);
 
-                    $this->backendUserAuthentication->start($request);
+                    try {
+                        $this->backendUserAuthentication->start($request);
+                    } catch (MfaRequiredException) {
+                        // The token is only issued within a session that has already passed MFA,
+                        // so the new session on this domain inherits that state.
+                        if (!($sessionData['mfa'] ?? false)) {
+                            return new HtmlResponse('Multi-factor authentication has not been completed', 403);
+                        }
+                        $this->backendUserAuthentication->setAndSaveSessionData('mfa', true);
+                    }
 
                     if ($workspaceId > 0) {
                         $this->backendUserAuthentication->setWorkspace($workspaceId);
