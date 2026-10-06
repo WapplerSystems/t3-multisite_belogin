@@ -35,6 +35,7 @@ use TYPO3\CMS\Core\Http\RedirectResponse;
 use TYPO3\CMS\Core\Http\SetCookieService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\HttpUtility;
+use WapplerSystems\MultisiteBelogin\Authentication\TokenAuthenticationService;
 
 /**
  * Initializes the backend user authentication object (BE_USER) and the global LANG object.
@@ -76,6 +77,21 @@ class TokenLoginAuthenticator implements MiddlewareInterface
         }
 
 
+        // The middleware redirects to the target URL after login. Only allow URLs on the host the token was
+        // sent to, otherwise this endpoint is an open redirect.
+        $targetUri = parse_url($url);
+        $requestHost = $request->getAttribute('normalizedParams')?->getRequestHostOnly() ?? $request->getUri()->getHost();
+        if (!is_array($targetUri)
+            || !in_array(strtolower($targetUri['scheme'] ?? ''), ['http', 'https'], true)
+            || strtolower($targetUri['host'] ?? '') !== strtolower($requestHost)
+        ) {
+            return new HtmlResponse('Invalid target url', 400);
+        }
+
+        if (!is_string($token) || $token === '' || $userid <= 0) {
+            return new HtmlResponse('no token found', 500);
+        }
+
         $sessionConnection = GeneralUtility::makeInstance(ConnectionPool::class)
             ->getConnectionForTable('be_sessions');
         $sessions = $sessionConnection->select(
@@ -88,7 +104,7 @@ class TokenLoginAuthenticator implements MiddlewareInterface
                 $sessionData = unserialize($session['ses_data'] ?? '', ['allowed_classes' => false]) ?: [];
                 $loginToken = $sessionData['login_token'] ?? null;
 
-                if ($loginToken === $token) {
+                if (is_string($loginToken) && hash_equals($loginToken, $token)) {
 
                     // check token timeout
                     $tokenTimeout = $sessionData['login_token_timeout'] ?? 0;
@@ -96,8 +112,20 @@ class TokenLoginAuthenticator implements MiddlewareInterface
                         return new HtmlResponse('Token expired', 500);
                     }
 
+                    // The token is single use: remove it from the issuing session. The update only matches the
+                    // session data we have just read, so of two concurrent requests with the same token only one wins.
+                    unset($sessionData['login_token'], $sessionData['login_token_timeout']);
+                    $consumed = $sessionConnection->update(
+                        'be_sessions',
+                        ['ses_data' => serialize($sessionData)],
+                        ['ses_id' => $session['ses_id'], 'ses_data' => $session['ses_data']]
+                    );
+                    if ($consumed !== 1) {
+                        return new HtmlResponse('Token already used', 403);
+                    }
+
                     //$response = new HtmlResponse('Token valid, logging in...', 200);
-                    $parsed = parse_url($url);
+                    $parsed = $targetUri;
                     parse_str($parsed['query'] ?? '', $existing);
                     $params = ['refresh' => time()];
                     $parsed['query'] = http_build_query(array_merge($existing, $params));
@@ -105,11 +133,15 @@ class TokenLoginAuthenticator implements MiddlewareInterface
 
                     $response = new RedirectResponse($url);
 
-                    $request = $request->withQueryParams([
-                        'msblToken' => $token,
-                        'userid' => $userid,
-                        'login_status' => LoginType::LOGIN,
-                    ]);
+                    // TokenAuthenticationService only accepts this server-side attribute, so a token can't be
+                    // used anywhere else than on this endpoint.
+                    $request = $request
+                        ->withQueryParams([
+                            'msblToken' => $token,
+                            'userid' => $userid,
+                            'login_status' => LoginType::LOGIN,
+                        ])
+                        ->withAttribute(TokenAuthenticationService::VERIFIED_USER_ATTRIBUTE, $userid);
 
                     try {
                         $this->backendUserAuthentication->start($request);

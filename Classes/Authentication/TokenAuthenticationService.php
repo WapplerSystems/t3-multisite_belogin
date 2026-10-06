@@ -3,25 +3,30 @@ declare(strict_types=1);
 
 namespace WapplerSystems\MultisiteBelogin\Authentication;
 
+use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\Authentication\AuthenticationService;
-use WapplerSystems\MultisiteBelogin\Session\UserSessionManager;
 
+/**
+ * Authenticates a backend user whose login token has already been verified and consumed by
+ * TokenLoginAuthenticator. The middleware passes the user id as a request attribute; request
+ * attributes can't be set by the client, so the service is inert on every other request.
+ */
 class TokenAuthenticationService extends AuthenticationService
 {
 
+    public const VERIFIED_USER_ATTRIBUTE = 'multisite_belogin.verifiedUserId';
 
     public function getUser()
     {
-        $token = $this->getParameterFromRequest('msblToken');
-        if (!$token) {
+        $userId = $this->getVerifiedUserId();
+        if ($userId === null) {
             return false;
         }
-        $userId = $this->getParameterFromRequest('userid');
 
-        $user = $this->fetchUserRecord('', 'uid=' . (int)$userId);
+        $user = $this->fetchUserRecord('', 'uid=' . $userId);
         if (!is_array($user)) {
-            $this->logger->info('Login-attempt from token "{token}" not found!', [
-                'token' => $token,
+            $this->logger->info('Login-attempt with token for user id {userid}, user not found!', [
+                'userid' => $userId,
                 'REMOTE_ADDR' => $this->authInfo['REMOTE_ADDR'],
             ]);
         } else {
@@ -36,34 +41,22 @@ class TokenAuthenticationService extends AuthenticationService
 
     public function authUser(array $user): int
     {
-
-        $token = $this->getParameterFromRequest('msblToken');
-
-        $userSessionManager = UserSessionManager::create('BE');
-        $sessionBackend = $userSessionManager->getSessionBackend();
-        $userSessions = $sessionBackend->getAll();
-
-        foreach ($userSessions as $userSession) {
-            if ($userSession['ses_userid'] === $user['uid']) {
-                $sessionData = unserialize($userSession['ses_data'] ?? '', ['allowed_classes' => false]) ?: [];
-                $sessionToken = $sessionData['login_token'] ?? null;
-                $sessionTimeout = $sessionData['login_token_timeout'] ?? null;
-                if ($sessionToken && $sessionToken === $token && $sessionTimeout && $sessionTimeout > time()) {
-                    return 200;
-                }
-            }
+        $userId = $this->getVerifiedUserId();
+        if ($userId === null) {
+            // Not a token login, let the other services decide
+            return 100;
         }
-        return 110;
+        return $userId === (int)$user['uid'] ? 200 : 0;
     }
 
-    protected function getParameterFromRequest(string $parameterName): mixed
+    protected function getVerifiedUserId(): ?int
     {
-        $request = $this->authInfo['request'] ?? $GLOBALS['TYPO3_REQUEST'];
-        $parsedBody = $request->getParsedBody();
-        if (isset($parsedBody[$parameterName])) {
-            return trim((string)($parsedBody[$parameterName]));
+        $request = $this->authInfo['request'] ?? null;
+        if (!$request instanceof ServerRequestInterface) {
+            return null;
         }
-        return $request->getQueryParams()[$parameterName] ?? null;
+        $userId = $request->getAttribute(self::VERIFIED_USER_ATTRIBUTE);
+        return is_int($userId) && $userId > 0 ? $userId : null;
     }
 
 }
