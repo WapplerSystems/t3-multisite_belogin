@@ -8,24 +8,22 @@ use Psr\Http\Message\ServerRequestInterface;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Http\JsonResponse;
 use TYPO3\CMS\Core\Localization\LanguageService;
-use WapplerSystems\MultisiteBelogin\Service\TokenGenerator;
+use WapplerSystems\MultisiteBelogin\Service\LoginTokenStore;
 
 class TokenController
 {
 
-    protected TokenGenerator $tokenGenerator;
+    protected LoginTokenStore $loginTokenStore;
 
-    public function __construct(TokenGenerator $tokenGenerator)
+    public function __construct(LoginTokenStore $loginTokenStore)
     {
-        $this->tokenGenerator = $tokenGenerator;
+        $this->loginTokenStore = $loginTokenStore;
     }
 
     public function generateAction(ServerRequestInterface $request): ResponseInterface
     {
-        $token = $this->tokenGenerator->generate();
         $backendUser = $this->getBackendUser();
-        $backendUser->setAndSaveSessionData('login_token', $token);
-        $backendUser->setAndSaveSessionData('login_token_timeout', time() + 60);
+        $token = $this->loginTokenStore->issue($backendUser, 60);
 
         return new JsonResponse(['token' => $token, 'username' => $backendUser->user['username']]);
     }

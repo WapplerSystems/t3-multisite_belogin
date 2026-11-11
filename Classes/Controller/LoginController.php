@@ -12,14 +12,14 @@ use TYPO3\CMS\Core\Http\RedirectResponse;
 use TYPO3\CMS\Core\Http\Uri;
 use TYPO3\CMS\Core\Localization\LanguageService;
 use TYPO3\CMS\Core\Site\SiteFinder;
-use WapplerSystems\MultisiteBelogin\Service\TokenGenerator;
+use WapplerSystems\MultisiteBelogin\Service\LoginTokenStore;
 
 class LoginController
 {
 
 
     public function __construct(
-        private readonly TokenGenerator $tokenGenerator,
+        private readonly LoginTokenStore $loginTokenStore,
         private readonly UriBuilder     $uriBuilder,
         private readonly SiteFinder     $siteFinder)
     {
@@ -50,10 +50,8 @@ class LoginController
             return new HtmlResponse('Url does not belong to a site of this installation', 400);
         }
 
-        $token = $this->tokenGenerator->generate();
         $backendUser = $this->getBackendUser();
-        $backendUser->setAndSaveSessionData('login_token', $token);
-        $backendUser->setAndSaveSessionData('login_token_timeout', time() + 20);
+        $token = $this->loginTokenStore->issue($backendUser, 20);
 
         $workspaceId = (int)$backendUser->workspace;
 

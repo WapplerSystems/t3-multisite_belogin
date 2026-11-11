@@ -28,6 +28,7 @@ use TYPO3\CMS\Core\Authentication\LoginType;
 use TYPO3\CMS\Core\Authentication\Mfa\MfaRequiredException;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Core\Environment;
+use TYPO3\CMS\Core\Database\Connection;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Http\HtmlResponse;
 use TYPO3\CMS\Core\Http\NormalizedParams;
@@ -36,6 +37,7 @@ use TYPO3\CMS\Core\Http\SetCookieService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\HttpUtility;
 use WapplerSystems\MultisiteBelogin\Authentication\TokenAuthenticationService;
+use WapplerSystems\MultisiteBelogin\Service\LoginTokenStore;
 
 /**
  * Initializes the backend user authentication object (BE_USER) and the global LANG object.
@@ -102,25 +104,15 @@ class TokenLoginAuthenticator implements MiddlewareInterface
         foreach ($sessions as $session) {
             if (isset($session['ses_data'])) {
                 $sessionData = unserialize($session['ses_data'] ?? '', ['allowed_classes' => false]) ?: [];
-                $loginToken = $sessionData['login_token'] ?? null;
+                $loginToken = LoginTokenStore::findToken($sessionData, $token);
 
-                if (is_string($loginToken) && hash_equals($loginToken, $token)) {
+                if ($loginToken !== null) {
 
-                    // check token timeout
-                    $tokenTimeout = $sessionData['login_token_timeout'] ?? 0;
-                    if ($tokenTimeout < time()) {
+                    if (LoginTokenStore::isExpired($sessionData, $loginToken)) {
                         return new HtmlResponse('Token expired', 500);
                     }
 
-                    // The token is single use: remove it from the issuing session. The update only matches the
-                    // session data we have just read, so of two concurrent requests with the same token only one wins.
-                    unset($sessionData['login_token'], $sessionData['login_token_timeout']);
-                    $consumed = $sessionConnection->update(
-                        'be_sessions',
-                        ['ses_data' => serialize($sessionData)],
-                        ['ses_id' => $session['ses_id'], 'ses_data' => $session['ses_data']]
-                    );
-                    if ($consumed !== 1) {
+                    if (!$this->consumeToken($sessionConnection, $session, $loginToken)) {
                         return new HtmlResponse('Token already used', 403);
                     }
 
@@ -165,6 +157,39 @@ class TokenLoginAuthenticator implements MiddlewareInterface
 
         return new HtmlResponse('no token found', 500);
 
+    }
+
+    /**
+     * The token is single use: remove it, and only it, from the issuing session. The update only matches the session
+     * data we have read, so of two concurrent requests with the same token only one wins. If the session data was
+     * changed for another reason (e.g. a further token was issued), read it again and retry while the token is still
+     * there.
+     */
+    protected function consumeToken(Connection $sessionConnection, array $session, string $loginToken): bool
+    {
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $sessionData = unserialize((string)$session['ses_data'], ['allowed_classes' => false]) ?: [];
+            if (LoginTokenStore::findToken($sessionData, $loginToken) === null) {
+                return false;
+            }
+            $consumed = $sessionConnection->update(
+                'be_sessions',
+                ['ses_data' => serialize(LoginTokenStore::withoutToken($sessionData, $loginToken))],
+                ['ses_id' => $session['ses_id'], 'ses_data' => $session['ses_data']]
+            );
+            if ($consumed === 1) {
+                return true;
+            }
+            $session = $sessionConnection->select(
+                ['ses_data', 'ses_id'],
+                'be_sessions',
+                ['ses_id' => $session['ses_id']]
+            )->fetchAssociative();
+            if (!is_array($session) || !isset($session['ses_data'])) {
+                return false;
+            }
+        }
+        return false;
     }
 
 

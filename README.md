@@ -78,6 +78,7 @@ Backend (domain-a.com)                    Frontend (domain-b.com)
 
 - Tokens are cryptographically random (40-char hex)
 - Tokens expire after 20 seconds and can only be used once, also with concurrent requests
+- Each session keeps all of its unexpired tokens, so issuing a new token (e.g. a second workspace preview) does not invalidate one that is still in flight
 - Tokens are only accepted on `/typo3/msbl/tokenauth`, not on other backend URLs
 - Tokens are only issued for domains of configured sites, and the token endpoint only redirects to its own domain
 - With MFA, the login on another domain requires that the issuing session has passed MFA
