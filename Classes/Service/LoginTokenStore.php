@@ -17,6 +17,12 @@ class LoginTokenStore
     public const SESSION_KEY = 'login_tokens';
 
     /**
+     * Identifies the sessions that belong to one login: the session that issues tokens and every session created on
+     * another domain with one of them share this value, so a logout ends exactly these sessions.
+     */
+    public const LOGIN_GROUP_SESSION_KEY = 'login_group';
+
+    /**
      * Upper bound for outstanding tokens per session, so the session data can't grow without limit.
      */
     protected const MAX_TOKENS = 20;
@@ -35,6 +41,10 @@ class LoginTokenStore
         $tokens = self::withoutExpired(is_array($tokens) ? $tokens : []);
         $tokens[$token] = time() + $lifetime;
         $tokens = array_slice($tokens, -self::MAX_TOKENS, null, true);
+
+        if (!is_string($backendUser->getSessionData(self::LOGIN_GROUP_SESSION_KEY))) {
+            $backendUser->setSessionData(self::LOGIN_GROUP_SESSION_KEY, $this->tokenGenerator->generate());
+        }
 
         // Drop the single token slot of older versions
         $backendUser->setSessionData('login_token', null);
@@ -60,6 +70,12 @@ class LoginTokenStore
             }
         }
         return $found;
+    }
+
+    public static function getLoginGroup(array $sessionData): ?string
+    {
+        $loginGroup = $sessionData[self::LOGIN_GROUP_SESSION_KEY] ?? null;
+        return is_string($loginGroup) && $loginGroup !== '' ? $loginGroup : null;
     }
 
     public static function isExpired(array $sessionData, string $storedToken): bool
