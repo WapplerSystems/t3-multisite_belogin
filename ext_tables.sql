@@ -3,6 +3,7 @@ CREATE TABLE tx_multisitebelogin_token (
 	user_id int(11) unsigned DEFAULT '0' NOT NULL,
 	login_group varchar(64) DEFAULT '' NOT NULL,
 	mfa smallint(1) unsigned DEFAULT '0' NOT NULL,
+	switch_user_id int(11) unsigned DEFAULT '0' NOT NULL,
 	expires int(11) unsigned DEFAULT '0' NOT NULL,
 
 	PRIMARY KEY (token_hash),

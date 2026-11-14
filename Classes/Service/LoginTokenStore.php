@@ -49,6 +49,8 @@ class LoginTokenStore
             'login_group' => $loginGroup,
             // The new session inherits the MFA state of the issuing session
             'mfa' => $backendUser->getSessionData('mfa') ? 1 : 0,
+            // In switch user mode, the user who switched, so the new session stays in switch user mode
+            'switch_user_id' => (int)$backendUser->getOriginalUserIdWhenInSwitchUserMode(),
             'expires' => time() + $lifetime,
         ]);
 
@@ -58,7 +60,7 @@ class LoginTokenStore
     /**
      * Consumes $token: of two concurrent requests with the same token only one gets the record.
      *
-     * @return array{user_id: int, login_group: string, mfa: bool}|string the token record, or 'expired' / 'invalid'
+     * @return array{user_id: int, login_group: string, mfa: bool, switch_user_id: int}|string the token record, or 'expired' / 'invalid'
      */
     public function consume(string $token, int $userId): array|string
     {
@@ -78,6 +80,7 @@ class LoginTokenStore
             'user_id' => (int)$record['user_id'],
             'login_group' => (string)$record['login_group'],
             'mfa' => (bool)$record['mfa'],
+            'switch_user_id' => (int)$record['switch_user_id'],
         ];
     }
 

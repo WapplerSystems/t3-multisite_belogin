@@ -35,6 +35,7 @@ use TYPO3\CMS\Core\Http\SetCookieService;
 use TYPO3\CMS\Core\Utility\HttpUtility;
 use WapplerSystems\MultisiteBelogin\Authentication\TokenAuthenticationService;
 use WapplerSystems\MultisiteBelogin\Service\LoginTokenStore;
+use WapplerSystems\MultisiteBelogin\Session\UserSessionManager;
 
 /**
  * Initializes the backend user authentication object (BE_USER) and the global LANG object.
@@ -118,16 +119,29 @@ class TokenLoginAuthenticator implements MiddlewareInterface
                 'login_status' => LoginType::LOGIN,
             ])
             ->withAttribute(TokenAuthenticationService::VERIFIED_USER_ATTRIBUTE, $userid);
+        $request = $this->withoutForeignSession($request, $tokenRecord);
 
         try {
             $this->backendUserAuthentication->start($request);
         } catch (MfaRequiredException) {
             // The token is only issued within a session that has already passed MFA,
-            // so the new session on this domain inherits that state.
-            if (!$tokenRecord['mfa']) {
+            // so the new session on this domain inherits that state. In switch user mode
+            // the core skips MFA for the user switched to.
+            if ($tokenRecord['mfa']) {
+                $this->backendUserAuthentication->setAndSaveSessionData('mfa', true);
+            } elseif ($tokenRecord['switch_user_id'] === 0) {
                 return new HtmlResponse('Multi-factor authentication has not been completed', 403);
             }
-            $this->backendUserAuthentication->setAndSaveSessionData('mfa', true);
+        }
+
+        if ((int)($this->backendUserAuthentication->user['uid'] ?? 0) !== $tokenRecord['user_id']) {
+            return new HtmlResponse('Login failed', 403);
+        }
+
+        if ($tokenRecord['switch_user_id'] > 0) {
+            // Keep the switch user mode on this domain as well: the core records the original user in the history,
+            // offers to exit the mode and withholds the system maintainer privileges.
+            $this->backendUserAuthentication->setAndSaveSessionData('backuserid', $tokenRecord['switch_user_id']);
         }
 
         if ($tokenRecord['login_group'] !== '') {
@@ -139,6 +153,35 @@ class TokenLoginAuthenticator implements MiddlewareInterface
         }
 
         return $this->enrichResponseWithHeadersAndCookieInformation($request, $response, $this->backendUserAuthentication);
+    }
+
+    /**
+     * The core ignores login data while the request carries a session with a logged-in user and keeps that session.
+     * The token state (MFA, login group, switch user mode) would then end up in the session of whoever is logged in on
+     * this domain, e.g. mark a session that is still waiting for its second factor as MFA verified. A session of the
+     * same user in the same switch user mode is kept, so open backend tabs on this domain survive; any other session
+     * is ended and the login starts from scratch.
+     */
+    protected function withoutForeignSession(ServerRequestInterface $request, array $tokenRecord): ServerRequestInterface
+    {
+        $cookieName = $this->backendUserAuthentication->name;
+        if (!isset($request->getCookieParams()[$cookieName])) {
+            return $request;
+        }
+        $userSessionManager = UserSessionManager::create('BE');
+        $session = $userSessionManager->createFromRequestOrAnonymous($request, $cookieName);
+        if ($session->isNew() || $session->isAnonymous()) {
+            return $request;
+        }
+        if ($session->getUserId() === $tokenRecord['user_id']
+            && (int)$session->get('backuserid') === $tokenRecord['switch_user_id']
+        ) {
+            return $request;
+        }
+        $userSessionManager->removeSession($session);
+        $cookies = $request->getCookieParams();
+        unset($cookies[$cookieName]);
+        return $request->withCookieParams($cookies);
     }
 
 

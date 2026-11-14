@@ -89,6 +89,7 @@ Backend (domain-a.com)                    Frontend (domain-b.com)
 - Tokens are only accepted on `/typo3/msbl/tokenauth`, not on other backend URLs
 - Tokens are only issued for domains of configured sites, and the token endpoint only redirects to its own domain
 - With MFA, the login on another domain requires that the issuing session has passed MFA
+- In switch user mode, the session on the other domain is in switch user mode as well (original user in the record history, "exit switch user", no system maintainer privileges)
 - A logout ends all sessions that were created from one another via token login, on every domain, and discards their outstanding tokens
 - Session data is read with safe `unserialize()` with `allowed_classes: false`
 - Session cookies are set with `SameSite=None` (requires HTTPS)
