@@ -6,6 +6,7 @@ services:
 
   WapplerSystems\MultisiteBelogin\:
     resource: '../Classes/*'
+    exclude: '../Classes/Session/StoredSessionRemover.php'
 
   WapplerSystems\MultisiteBelogin\Service\TokenGenerator:
     public: true

@@ -13,7 +13,12 @@ TYPO3 extension for automatic cross-domain backend login. Allows editors to use 
 
 ```bash
 composer require wapplersystems/multisite-belogin
+vendor/bin/typo3 extension:setup -e multisite_belogin
 ```
+
+The extension keeps its login tokens in the table `tx_multisitebelogin_token`, so run the database schema update (`extension:setup` or *Admin Tools > Maintenance > Analyze Database Structure*) after installing or updating it.
+
+Every session backend of the TYPO3 core is supported, the database backend as well as Redis.
 
 Add the `refresh` GET parameter to the cacheHash exclusion list in `config/system/settings.php`:
 
@@ -27,9 +32,9 @@ When an editor clicks "View page" in the TYPO3 backend, the target page may be o
 
 This extension solves this by:
 
-1. **Token generation** -- When the editor triggers a frontend preview, a short-lived token (20s TTL) is generated and stored in the backend session. Tokens are only issued for URLs on a domain of a configured site.
+1. **Token generation** -- When the editor triggers a frontend preview, a short-lived token (20s TTL) is generated. Only its SHA-256 hash is stored, in `tx_multisitebelogin_token`, together with the user, the MFA state and the login group of the issuing session. Tokens are only issued for URLs on a domain of a configured site.
 2. **Redirect** -- The preview URL is rewritten to pass through the token authentication endpoint (`/typo3/msbl/tokenauth`) with the token, user ID, and original target URL.
-3. **Token validation** -- The middleware intercepts the request, validates the token against the stored session data, consumes it (single use) and authenticates the user. If the user has MFA enabled, the session on the target domain is only accepted as MFA-verified when the issuing session has passed MFA.
+3. **Token validation** -- The middleware intercepts the request, validates the token against the token table, consumes it (single use) and authenticates the user. The new session joins the login group of the issuing session. If the user has MFA enabled, the session on the target domain is only accepted as MFA-verified when the issuing session has passed MFA.
 4. **Cookie propagation** -- A backend session cookie with `SameSite=None` is set on the response, enabling cross-domain authentication.
 5. **Redirect to target** -- The editor is redirected to the original preview URL, now fully authenticated.
 
@@ -41,7 +46,7 @@ This extension solves this by:
 Backend (domain-a.com)                    Frontend (domain-b.com)
         |                                         |
         |  1. Editor clicks "View page"           |
-        |  2. Token generated + stored in session  |
+        |  2. Token generated, hash stored         |
         |  3. Redirect to /typo3/msbl/tokenauth   |
         |         with ?msblToken=...&userid=...   |
         |  ─────────────────────────────────────>  |
@@ -58,12 +63,13 @@ Backend (domain-a.com)                    Frontend (domain-b.com)
 | `TokenGenerator` | Generates 40-char random hex tokens via `TYPO3\CMS\Core\Crypto\Random` |
 | `TokenAuthenticationService` | TYPO3 auth service (`subtype: getUserBE,authUserBE`) that authenticates the user whose token the middleware has verified; inactive on all other requests |
 | `TokenLoginAuthenticator` | PSR-15 middleware on `/typo3/msbl/tokenauth` -- validates and consumes the token, carries over the MFA state, sets session cookie, redirects |
-| `LoginController` | Backend route `/msbl/redirectToFrontend` -- checks the target URL against the configured sites, generates token, stores in session, builds redirect URL |
+| `LoginController` | Backend route `/msbl/redirectToFrontend` -- checks the target URL against the configured sites, generates token, builds redirect URL |
+| `LoginTokenStore` | Issues and consumes tokens in `tx_multisitebelogin_token`, independent of the session backend |
 | `TokenController` | Token generation as JSON (currently not registered as a route) |
 | `AfterPagePreviewUriGeneratedEventListener` | Rewrites preview URIs to route through the token auth endpoint |
-| `BeforeUserLogoutEventListener` | On logout: removes all other sessions for the user |
-| `AfterUserLoggedOutEventListener` | On logout: cleanup of all remaining sessions |
+| `BeforeUserLogoutEventListener` | On logout: removes the sessions of the same login group and their outstanding tokens; independent logins of the same user (other browser, other device) stay untouched |
 | `UserSessionManager` | Extends core `UserSessionManager` to expose the session backend for direct session access |
+| `StoredSessionRemover` | Removes a session by the hashed identifier the session backend lists, also for Redis |
 
 ### Configuration files
 
@@ -78,11 +84,13 @@ Backend (domain-a.com)                    Frontend (domain-b.com)
 
 - Tokens are cryptographically random (40-char hex)
 - Tokens expire after 20 seconds and can only be used once, also with concurrent requests
+- Only a hash of each token is stored
 - Each session keeps all of its unexpired tokens, so issuing a new token (e.g. a second workspace preview) does not invalidate one that is still in flight
 - Tokens are only accepted on `/typo3/msbl/tokenauth`, not on other backend URLs
 - Tokens are only issued for domains of configured sites, and the token endpoint only redirects to its own domain
 - With MFA, the login on another domain requires that the issuing session has passed MFA
-- Token validation uses safe `unserialize()` with `allowed_classes: false`
+- A logout ends all sessions that were created from one another via token login, on every domain, and discards their outstanding tokens
+- Session data is read with safe `unserialize()` with `allowed_classes: false`
 - Session cookies are set with `SameSite=None` (requires HTTPS)
 - Failed login attempts are logged via PSR-3 logger
 

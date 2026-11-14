@@ -6,6 +6,7 @@ use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
 use TYPO3\CMS\Core\Authentication\Event\BeforeUserLogoutEvent;
 use TYPO3\CMS\Core\Session\Backend\HashableSessionBackendInterface;
 use WapplerSystems\MultisiteBelogin\Service\LoginTokenStore;
+use WapplerSystems\MultisiteBelogin\Session\StoredSessionRemover;
 use WapplerSystems\MultisiteBelogin\Session\UserSessionManager;
 
 /**
@@ -19,6 +20,10 @@ use WapplerSystems\MultisiteBelogin\Session\UserSessionManager;
  */
 final class BeforeUserLogoutEventListener
 {
+    public function __construct(private readonly LoginTokenStore $loginTokenStore)
+    {
+    }
+
     public function __invoke(BeforeUserLogoutEvent $event): void
     {
         $user = $event->getUser();
@@ -35,6 +40,9 @@ final class BeforeUserLogoutEventListener
             return;
         }
 
+        // Tokens still in flight would otherwise open new sessions of the group after the logout
+        $this->loginTokenStore->removeByLoginGroup($loginGroup);
+
         $userSessionManager = UserSessionManager::create('BE');
         $sessionBackend = $userSessionManager->getSessionBackend();
 
@@ -49,7 +57,7 @@ final class BeforeUserLogoutEventListener
             }
             $sessionData = unserialize((string)($userSession['ses_data'] ?? ''), ['allowed_classes' => false]);
             if (is_array($sessionData) && LoginTokenStore::getLoginGroup($sessionData) === $loginGroup) {
-                $sessionBackend->remove($userSession['ses_id']);
+                StoredSessionRemover::removeStored($sessionBackend, $userSession['ses_id']);
             }
         }
     }
