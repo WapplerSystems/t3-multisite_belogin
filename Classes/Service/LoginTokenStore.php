@@ -37,14 +37,20 @@ class LoginTokenStore
 
         // Start from the stored session data rather than the copy loaded at the beginning of this request, so a
         // token consumed in the meantime on another host is not written back.
-        $tokens = $this->getStoredTokens($backendUser) ?? $backendUser->getSessionData(self::SESSION_KEY);
+        $storedSessionData = $this->getStoredSessionData($backendUser);
+        $tokens = $storedSessionData !== null
+            ? ($storedSessionData[self::SESSION_KEY] ?? [])
+            : $backendUser->getSessionData(self::SESSION_KEY);
         $tokens = self::withoutExpired(is_array($tokens) ? $tokens : []);
         $tokens[$token] = time() + $lifetime;
         $tokens = array_slice($tokens, -self::MAX_TOKENS, null, true);
 
-        if (!is_string($backendUser->getSessionData(self::LOGIN_GROUP_SESSION_KEY))) {
-            $backendUser->setSessionData(self::LOGIN_GROUP_SESSION_KEY, $this->tokenGenerator->generate());
-        }
+        // Keep a login group another request has stored in the meantime, otherwise sessions created with its tokens
+        // would belong to a group that no longer exists.
+        $loginGroup = self::getLoginGroup($storedSessionData ?? [])
+            ?? self::getLoginGroup([self::LOGIN_GROUP_SESSION_KEY => $backendUser->getSessionData(self::LOGIN_GROUP_SESSION_KEY)])
+            ?? $this->tokenGenerator->generate();
+        $backendUser->setSessionData(self::LOGIN_GROUP_SESSION_KEY, $loginGroup);
 
         // Drop the single token slot of older versions
         $backendUser->setSessionData('login_token', null);
@@ -105,7 +111,10 @@ class LoginTokenStore
         return array_filter($tokens, static fn($expires): bool => (int)$expires >= $now);
     }
 
-    protected function getStoredTokens(BackendUserAuthentication $backendUser): ?array
+    /**
+     * @return array|null the session data as currently stored, null if it can't be read
+     */
+    protected function getStoredSessionData(BackendUserAuthentication $backendUser): ?array
     {
         try {
             $record = GeneralUtility::makeInstance(SessionManager::class)
@@ -115,7 +124,6 @@ class LoginTokenStore
             return null;
         }
         $sessionData = unserialize((string)($record['ses_data'] ?? ''), ['allowed_classes' => false]);
-        $tokens = is_array($sessionData) ? ($sessionData[self::SESSION_KEY] ?? []) : [];
-        return is_array($tokens) ? $tokens : [];
+        return is_array($sessionData) ? $sessionData : [];
     }
 }
