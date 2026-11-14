@@ -145,6 +145,11 @@ class TokenLoginAuthenticator implements MiddlewareInterface
                         $this->backendUserAuthentication->setAndSaveSessionData('mfa', true);
                     }
 
+                    $loginGroup = LoginTokenStore::getLoginGroup($sessionData);
+                    if ($loginGroup !== null) {
+                        $this->backendUserAuthentication->setAndSaveSessionData(LoginTokenStore::LOGIN_GROUP_SESSION_KEY, $loginGroup);
+                    }
+
                     if ($workspaceId > 0) {
                         $this->backendUserAuthentication->setWorkspace($workspaceId);
                     }
