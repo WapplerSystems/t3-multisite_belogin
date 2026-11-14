@@ -27,13 +27,10 @@ use TYPO3\CMS\Core\Authentication\LoginType;
 use TYPO3\CMS\Core\Authentication\Mfa\MfaRequiredException;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Core\Environment;
-use TYPO3\CMS\Core\Database\Connection;
-use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Http\HtmlResponse;
 use TYPO3\CMS\Core\Http\NormalizedParams;
 use TYPO3\CMS\Core\Http\RedirectResponse;
 use TYPO3\CMS\Core\Http\SetCookieService;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\HttpUtility;
 use WapplerSystems\MultisiteBelogin\Authentication\TokenAuthenticationService;
 use WapplerSystems\MultisiteBelogin\Service\LoginTokenStore;
@@ -47,7 +44,8 @@ class TokenLoginAuthenticator implements MiddlewareInterface
 {
 
     public function __construct(private BackendUserAuthentication $backendUserAuthentication,
-                                protected Context                 $context)
+                                protected Context                 $context,
+                                private readonly LoginTokenStore  $loginTokenStore)
     {
 
     }
@@ -93,107 +91,53 @@ class TokenLoginAuthenticator implements MiddlewareInterface
             return new HtmlResponse('no token found', 500);
         }
 
-        $sessionConnection = GeneralUtility::makeInstance(ConnectionPool::class)
-            ->getConnectionForTable('be_sessions');
-        $sessions = $sessionConnection->select(
-            ['ses_data', 'ses_id'],
-            'be_sessions',
-            ['ses_userid' => $userid]
-        )->fetchAllAssociative();
-        foreach ($sessions as $session) {
-            if (isset($session['ses_data'])) {
-                $sessionData = unserialize($session['ses_data'] ?? '', ['allowed_classes' => false]) ?: [];
-                $loginToken = LoginTokenStore::findToken($sessionData, $token);
-
-                if ($loginToken !== null) {
-
-                    if (LoginTokenStore::isExpired($sessionData, $loginToken)) {
-                        return new HtmlResponse('Token expired', 500);
-                    }
-
-                    if (!$this->consumeToken($sessionConnection, $session, $loginToken)) {
-                        return new HtmlResponse('Token already used', 403);
-                    }
-
-                    //$response = new HtmlResponse('Token valid, logging in...', 200);
-                    $parsed = $targetUri;
-                    parse_str($parsed['query'] ?? '', $existing);
-                    $params = ['refresh' => time()];
-                    $parsed['query'] = http_build_query(array_merge($existing, $params));
-                    $url = HttpUtility::buildUrl($parsed);
-
-                    $response = new RedirectResponse($url);
-
-                    // TokenAuthenticationService only accepts this server-side attribute, so a token can't be
-                    // used anywhere else than on this endpoint.
-                    $request = $request
-                        ->withQueryParams([
-                            'msblToken' => $token,
-                            'userid' => $userid,
-                            'login_status' => LoginType::LOGIN,
-                        ])
-                        ->withAttribute(TokenAuthenticationService::VERIFIED_USER_ATTRIBUTE, $userid);
-
-                    try {
-                        $this->backendUserAuthentication->start($request);
-                    } catch (MfaRequiredException) {
-                        // The token is only issued within a session that has already passed MFA,
-                        // so the new session on this domain inherits that state.
-                        if (!($sessionData['mfa'] ?? false)) {
-                            return new HtmlResponse('Multi-factor authentication has not been completed', 403);
-                        }
-                        $this->backendUserAuthentication->setAndSaveSessionData('mfa', true);
-                    }
-
-                    $loginGroup = LoginTokenStore::getLoginGroup($sessionData);
-                    if ($loginGroup !== null) {
-                        $this->backendUserAuthentication->setAndSaveSessionData(LoginTokenStore::LOGIN_GROUP_SESSION_KEY, $loginGroup);
-                    }
-
-                    if ($workspaceId > 0) {
-                        $this->backendUserAuthentication->setWorkspace($workspaceId);
-                    }
-
-                    return $this->enrichResponseWithHeadersAndCookieInformation($request, $response, $this->backendUserAuthentication);
-                }
-            }
+        $tokenRecord = $this->loginTokenStore->consume($token, $userid);
+        if ($tokenRecord === 'expired') {
+            return new HtmlResponse('Token expired', 500);
+        }
+        if (!is_array($tokenRecord)) {
+            return new HtmlResponse('no token found', 500);
         }
 
-        return new HtmlResponse('no token found', 500);
+        //$response = new HtmlResponse('Token valid, logging in...', 200);
+        $parsed = $targetUri;
+        parse_str($parsed['query'] ?? '', $existing);
+        $params = ['refresh' => time()];
+        $parsed['query'] = http_build_query(array_merge($existing, $params));
+        $url = HttpUtility::buildUrl($parsed);
 
-    }
+        $response = new RedirectResponse($url);
 
-    /**
-     * The token is single use: remove it, and only it, from the issuing session. The update only matches the session
-     * data we have read, so of two concurrent requests with the same token only one wins. If the session data was
-     * changed for another reason (e.g. a further token was issued), read it again and retry while the token is still
-     * there.
-     */
-    protected function consumeToken(Connection $sessionConnection, array $session, string $loginToken): bool
-    {
-        for ($attempt = 0; $attempt < 5; $attempt++) {
-            $sessionData = unserialize((string)$session['ses_data'], ['allowed_classes' => false]) ?: [];
-            if (LoginTokenStore::findToken($sessionData, $loginToken) === null) {
-                return false;
+        // TokenAuthenticationService only accepts this server-side attribute, so a token can't be
+        // used anywhere else than on this endpoint.
+        $request = $request
+            ->withQueryParams([
+                'msblToken' => $token,
+                'userid' => $userid,
+                'login_status' => LoginType::LOGIN,
+            ])
+            ->withAttribute(TokenAuthenticationService::VERIFIED_USER_ATTRIBUTE, $userid);
+
+        try {
+            $this->backendUserAuthentication->start($request);
+        } catch (MfaRequiredException) {
+            // The token is only issued within a session that has already passed MFA,
+            // so the new session on this domain inherits that state.
+            if (!$tokenRecord['mfa']) {
+                return new HtmlResponse('Multi-factor authentication has not been completed', 403);
             }
-            $consumed = $sessionConnection->update(
-                'be_sessions',
-                ['ses_data' => serialize(LoginTokenStore::withoutToken($sessionData, $loginToken))],
-                ['ses_id' => $session['ses_id'], 'ses_data' => $session['ses_data']]
-            );
-            if ($consumed === 1) {
-                return true;
-            }
-            $session = $sessionConnection->select(
-                ['ses_data', 'ses_id'],
-                'be_sessions',
-                ['ses_id' => $session['ses_id']]
-            )->fetchAssociative();
-            if (!is_array($session) || !isset($session['ses_data'])) {
-                return false;
-            }
+            $this->backendUserAuthentication->setAndSaveSessionData('mfa', true);
         }
-        return false;
+
+        if ($tokenRecord['login_group'] !== '') {
+            $this->backendUserAuthentication->setAndSaveSessionData(LoginTokenStore::LOGIN_GROUP_SESSION_KEY, $tokenRecord['login_group']);
+        }
+
+        if ($workspaceId > 0) {
+            $this->backendUserAuthentication->setWorkspace($workspaceId);
+        }
+
+        return $this->enrichResponseWithHeadersAndCookieInformation($request, $response, $this->backendUserAuthentication);
     }
 
 
