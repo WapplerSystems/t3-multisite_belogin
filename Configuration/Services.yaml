@@ -6,6 +6,7 @@ services:
 
   WapplerSystems\MultisiteBelogin\:
     resource: '../Classes/*'
+    exclude: '../Classes/Session/StoredSessionRemover.php'
 
   WapplerSystems\MultisiteBelogin\Service\TokenGenerator:
     public: true
@@ -21,12 +22,6 @@ services:
       - name: event.listener
         identifier: 'multisiteBelogin-beforeUserLogoutEventListener'
         event: TYPO3\CMS\Core\Authentication\Event\BeforeUserLogoutEvent
-
-  WapplerSystems\MultisiteBelogin\EventListener\AfterUserLoggedOutEventListener:
-    tags:
-      - name: event.listener
-        identifier: 'multisiteBelogin-afterUserLoggedOutEventListener'
-        event: TYPO3\CMS\Core\Authentication\Event\AfterUserLoggedOutEvent
 
   WapplerSystems\MultisiteBelogin\EventListener\AfterPagePreviewUriGeneratedEventListener:
     tags:

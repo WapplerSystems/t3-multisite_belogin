@@ -31,7 +31,7 @@ class UserSessionManager extends \TYPO3\CMS\Core\Session\UserSessionManager
      * @param IpLocker|null $ipLocker
      * @return static
      */
-    public static function create(string $loginType, int $sessionLifetime = null, SessionManager $sessionManager = null, IpLocker $ipLocker = null): self
+    public static function create(string $loginType, ?int $sessionLifetime = null, ?SessionManager $sessionManager = null, ?IpLocker $ipLocker = null): self
     {
         $sessionManager = $sessionManager ?? GeneralUtility::makeInstance(SessionManager::class);
         $ipLocker = $ipLocker ?? GeneralUtility::makeInstance(

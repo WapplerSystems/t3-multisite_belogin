@@ -17,24 +17,24 @@ declare(strict_types=1);
 
 namespace WapplerSystems\MultisiteBelogin\Middleware;
 
-use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use Symfony\Component\HttpFoundation\Cookie;
 use TYPO3\CMS\Core\Authentication\BackendUserAuthentication;
-use TYPO3\CMS\Core\Authentication\Event\AfterUserLoggedInEvent;
 use TYPO3\CMS\Core\Authentication\LoginType;
+use TYPO3\CMS\Core\Authentication\Mfa\MfaRequiredException;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Core\Environment;
-use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Http\HtmlResponse;
 use TYPO3\CMS\Core\Http\NormalizedParams;
 use TYPO3\CMS\Core\Http\RedirectResponse;
 use TYPO3\CMS\Core\Http\SetCookieService;
-use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\HttpUtility;
+use WapplerSystems\MultisiteBelogin\Authentication\TokenAuthenticationService;
+use WapplerSystems\MultisiteBelogin\Service\LoginTokenStore;
+use WapplerSystems\MultisiteBelogin\Session\UserSessionManager;
 
 /**
  * Initializes the backend user authentication object (BE_USER) and the global LANG object.
@@ -45,7 +45,8 @@ class TokenLoginAuthenticator implements MiddlewareInterface
 {
 
     public function __construct(private BackendUserAuthentication $backendUserAuthentication,
-                                protected Context                 $context)
+                                protected Context                 $context,
+                                private readonly LoginTokenStore  $loginTokenStore)
     {
 
     }
@@ -76,54 +77,110 @@ class TokenLoginAuthenticator implements MiddlewareInterface
         }
 
 
-        $sessionConnection = GeneralUtility::makeInstance(ConnectionPool::class)
-            ->getConnectionForTable('be_sessions');
-        $sessions = $sessionConnection->select(
-            ['ses_data', 'ses_id'],
-            'be_sessions',
-            ['ses_userid' => $userid]
-        )->fetchAllAssociative();
-        foreach ($sessions as $session) {
-            if (isset($session['ses_data'])) {
-                $sessionData = unserialize($session['ses_data']);
-                $loginToken = $sessionData['login_token'] ?? null;
+        // The middleware redirects to the target URL after login. Only allow URLs on the host the token was
+        // sent to, otherwise this endpoint is an open redirect.
+        $targetUri = parse_url($url);
+        $requestHost = $request->getAttribute('normalizedParams')?->getRequestHostOnly() ?? $request->getUri()->getHost();
+        if (!is_array($targetUri)
+            || !in_array(strtolower($targetUri['scheme'] ?? ''), ['http', 'https'], true)
+            || strtolower($targetUri['host'] ?? '') !== strtolower($requestHost)
+        ) {
+            return new HtmlResponse('Invalid target url', 400);
+        }
 
-                if ($loginToken === $token) {
+        if (!is_string($token) || $token === '' || $userid <= 0) {
+            return new HtmlResponse('no token found', 500);
+        }
 
-                    // check token timeout
-                    $tokenTimeout = $sessionData['login_token_timeout'] ?? 0;
-                    if ($tokenTimeout < time()) {
-                        return new HtmlResponse('Token expired', 500);
-                    }
+        $tokenRecord = $this->loginTokenStore->consume($token, $userid);
+        if ($tokenRecord === 'expired') {
+            return new HtmlResponse('Token expired', 500);
+        }
+        if (!is_array($tokenRecord)) {
+            return new HtmlResponse('no token found', 500);
+        }
 
-                    //$response = new HtmlResponse('Token valid, logging in...', 200);
-                    $parsed = parse_url($url);
-                    parse_str($parsed['query'] ?? '', $existing);
-                    $params = ['refresh' => time()];
-                    $parsed['query'] = http_build_query(array_merge($existing, $params));
-                    $url = HttpUtility::buildUrl($parsed);
+        //$response = new HtmlResponse('Token valid, logging in...', 200);
+        $parsed = $targetUri;
+        parse_str($parsed['query'] ?? '', $existing);
+        $params = ['refresh' => time()];
+        $parsed['query'] = http_build_query(array_merge($existing, $params));
+        $url = HttpUtility::buildUrl($parsed);
 
-                    $response = new RedirectResponse($url);
+        $response = new RedirectResponse($url);
 
-                    $request = $request->withQueryParams([
-                        'msblToken' => $token,
-                        'userid' => $userid,
-                        'login_status' => LoginType::LOGIN,
-                    ]);
+        // TokenAuthenticationService only accepts this server-side attribute, so a token can't be
+        // used anywhere else than on this endpoint.
+        $request = $request
+            ->withQueryParams([
+                'msblToken' => $token,
+                'userid' => $userid,
+                'login_status' => LoginType::LOGIN,
+            ])
+            ->withAttribute(TokenAuthenticationService::VERIFIED_USER_ATTRIBUTE, $userid);
+        $request = $this->withoutForeignSession($request, $tokenRecord);
 
-                    $this->backendUserAuthentication->start($request);
-
-                    if ($workspaceId > 0) {
-                        $this->backendUserAuthentication->setWorkspace($workspaceId);
-                    }
-
-                    return $this->enrichResponseWithHeadersAndCookieInformation($request, $response, $this->backendUserAuthentication);
-                }
+        try {
+            $this->backendUserAuthentication->start($request);
+        } catch (MfaRequiredException) {
+            // The token is only issued within a session that has already passed MFA,
+            // so the new session on this domain inherits that state. In switch user mode
+            // the core skips MFA for the user switched to.
+            if ($tokenRecord['mfa']) {
+                $this->backendUserAuthentication->setAndSaveSessionData('mfa', true);
+            } elseif ($tokenRecord['switch_user_id'] === 0) {
+                return new HtmlResponse('Multi-factor authentication has not been completed', 403);
             }
         }
 
-        return new HtmlResponse('no token found', 500);
+        if ((int)($this->backendUserAuthentication->user['uid'] ?? 0) !== $tokenRecord['user_id']) {
+            return new HtmlResponse('Login failed', 403);
+        }
 
+        if ($tokenRecord['switch_user_id'] > 0) {
+            // Keep the switch user mode on this domain as well: the core records the original user in the history,
+            // offers to exit the mode and withholds the system maintainer privileges.
+            $this->backendUserAuthentication->setAndSaveSessionData('backuserid', $tokenRecord['switch_user_id']);
+        }
+
+        if ($tokenRecord['login_group'] !== '') {
+            $this->backendUserAuthentication->setAndSaveSessionData(LoginTokenStore::LOGIN_GROUP_SESSION_KEY, $tokenRecord['login_group']);
+        }
+
+        if ($workspaceId > 0) {
+            $this->backendUserAuthentication->setWorkspace($workspaceId);
+        }
+
+        return $this->enrichResponseWithHeadersAndCookieInformation($request, $response, $this->backendUserAuthentication);
+    }
+
+    /**
+     * The core ignores login data while the request carries a session with a logged-in user and keeps that session.
+     * The token state (MFA, login group, switch user mode) would then end up in the session of whoever is logged in on
+     * this domain, e.g. mark a session that is still waiting for its second factor as MFA verified. A session of the
+     * same user in the same switch user mode is kept, so open backend tabs on this domain survive; any other session
+     * is ended and the login starts from scratch.
+     */
+    protected function withoutForeignSession(ServerRequestInterface $request, array $tokenRecord): ServerRequestInterface
+    {
+        $cookieName = $this->backendUserAuthentication->name;
+        if (!isset($request->getCookieParams()[$cookieName])) {
+            return $request;
+        }
+        $userSessionManager = UserSessionManager::create('BE');
+        $session = $userSessionManager->createFromRequestOrAnonymous($request, $cookieName);
+        if ($session->isNew() || $session->isAnonymous()) {
+            return $request;
+        }
+        if ($session->getUserId() === $tokenRecord['user_id']
+            && (int)$session->get('backuserid') === $tokenRecord['switch_user_id']
+        ) {
+            return $request;
+        }
+        $userSessionManager->removeSession($session);
+        $cookies = $request->getCookieParams();
+        unset($cookies[$cookieName]);
+        return $request->withCookieParams($cookies);
     }
 
 
@@ -153,7 +210,7 @@ class TokenLoginAuthenticator implements MiddlewareInterface
             $normalizedParams = NormalizedParams::createFromRequest($GLOBALS['TYPO3_REQUEST']);
         }
         $setCookieService = SetCookieService::create($this->backendUserAuthentication->name, $this->backendUserAuthentication->loginType);
-        $cookieObject = $setCookieService->setSessionCookie($this->backendUserAuthentication->userSession, $normalizedParams);
+        $cookieObject = $setCookieService->setSessionCookie($this->backendUserAuthentication->getSession(), $normalizedParams);
         if ($cookieObject) {
             $cookieObject = $cookieObject->withSameSite(Cookie::SAMESITE_NONE);
             $response = $response->withAddedHeader('Set-Cookie', $cookieObject->__toString());

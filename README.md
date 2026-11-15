@@ -11,3 +11,6 @@ This is particularly useful for previewing content and using backend tools direc
 * Install the extension via composer/TER
 * Add the "refresh" GET parameter to the [FE][cacheHash][excludedParameters] configuration in your system settings
 * You must log in to backend with https
+* Run the database schema update after installing or updating (`vendor/bin/typo3 extension:setup -e multisite_belogin`), the login tokens are kept in the table `tx_multisitebelogin_token`
+
+Every session backend of the TYPO3 core is supported, the database backend as well as Redis.
